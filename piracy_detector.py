@@ -10,6 +10,11 @@ from datetime import datetime
 # Your SerpAPI key (get it from https://serpapi.com/)
 SERPAPI_KEY = "YOUR_SERPAPI_KEY_HERE"
 
+# Telegram Bot Configuration (optional)
+TELEGRAM_ENABLED = True  # Set to False to disable notifications
+TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"  # Get from @BotFather
+TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID_HERE"  # Your chat ID
+
 # Your work information
 NOVEL_TITLE = "Level Up Legacy"
 AUTHOR_NAME = "MellowGuy"
@@ -93,6 +98,81 @@ def append_rows_to_csv(rows, filename):
             writer.writerows(rows)
     except Exception as e:
         print("Error writing CSV:", e)
+
+def send_telegram_message(message: str):
+    """Send a message via Telegram bot."""
+    if not TELEGRAM_ENABLED:
+        return False
+    
+    if TELEGRAM_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN_HERE" or TELEGRAM_CHAT_ID == "YOUR_TELEGRAM_CHAT_ID_HERE":
+        print("⚠️  Telegram notifications disabled: Please configure TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID")
+        return False
+    
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        
+        # Split message if it's too long (Telegram has a 4096 character limit)
+        max_length = 4000
+        if len(message) > max_length:
+            # Send in chunks
+            for i in range(0, len(message), max_length):
+                chunk = message[i:i + max_length]
+                payload = {
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "text": chunk,
+                    "parse_mode": "HTML"
+                }
+                resp = requests.post(url, json=payload, timeout=10)
+                resp.raise_for_status()
+        else:
+            payload = {
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": message,
+                "parse_mode": "HTML"
+            }
+            resp = requests.post(url, json=payload, timeout=10)
+            resp.raise_for_status()
+        
+        print("✅ Telegram notification sent successfully")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending Telegram message: {e}")
+        return False
+
+def format_telegram_message(new_entries):
+    """Format a notification message for Telegram."""
+    if not new_entries:
+        return None
+    
+    lines = []
+    lines.append("🚨 <b>New Piracy URLs Detected!</b>")
+    lines.append("")
+    lines.append(f"📚 Novel: <b>{NOVEL_TITLE}</b>")
+    lines.append(f"✍️ Author: <b>{AUTHOR_NAME}</b>")
+    lines.append(f"🔍 Found: <b>{len(new_entries)} new URL(s)</b>")
+    lines.append("")
+    lines.append("📍 <b>Infringing URLs:</b>")
+    
+    for i, entry in enumerate(new_entries[:20], 1):  # Limit to first 20 to avoid too long messages
+        domain = entry['domain']
+        url = entry['url']
+        # Truncate very long URLs
+        display_url = url if len(url) <= 80 else url[:77] + "..."
+        lines.append(f"{i}. {domain}")
+        lines.append(f"   {display_url}")
+    
+    if len(new_entries) > 20:
+        lines.append("")
+        lines.append(f"... and {len(new_entries) - 20} more URLs")
+    
+    lines.append("")
+    lines.append("📄 Full details saved to:")
+    lines.append(f"• {CANDIDATES_CSV}")
+    lines.append(f"• {DMCA_REPORT_FILE}")
+    lines.append("")
+    lines.append("⚖️ Review and take action if confirmed as infringement.")
+    
+    return "\n".join(lines)
 
 def generate_dmca_text(new_entries):
     """
@@ -210,6 +290,12 @@ def main():
         print(f"DMCA draft written to {DMCA_REPORT_FILE}.")
     except Exception as e:
         print("Error writing DMCA report file:", e)
+
+    # Send Telegram notification
+    if TELEGRAM_ENABLED:
+        telegram_msg = format_telegram_message(all_new_entries)
+        if telegram_msg:
+            send_telegram_message(telegram_msg)
 
     print("\nDone. Review the URLs in:")
     print(f" - {CANDIDATES_CSV}")

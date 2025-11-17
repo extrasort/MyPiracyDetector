@@ -9,6 +9,7 @@ A Python script to detect unauthorized hosting of your web novel by searching Go
 - 📝 Generates DMCA takedown notice drafts
 - 💾 Exports results to CSV for easy review
 - 🔄 Incremental scanning (remembers previously seen URLs)
+- 📱 **Telegram bot notifications** - Get instant alerts when piracy is detected!
 
 ## Prerequisites
 
@@ -36,11 +37,45 @@ pip install -r requirements.txt
 
 ## Configuration
 
+### Step 1: Set Up Telegram Bot (for notifications)
+
+1. **Create a Telegram Bot:**
+   - Open Telegram and search for `@BotFather`
+   - Send `/start` then `/newbot`
+   - Follow the prompts to name your bot
+   - Copy the **Bot Token** (looks like: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
+
+2. **Get Your Chat ID:**
+   - Search for `@userinfobot` on Telegram
+   - Send `/start` to get your **Chat ID** (a number like: `123456789`)
+   
+   *Alternative method:*
+   - Send a message to your bot
+   - Visit: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
+   - Look for `"chat":{"id":123456789}` in the response
+
+### Step 2: Test Your Telegram Bot (Optional but Recommended)
+
+Before configuring the main script, test your bot:
+
+```bash
+python test_telegram.py
+```
+
+This will verify your bot token and chat ID are correct.
+
+### Step 3: Configure the Script
+
 Edit `piracy_detector.py` and update the following constants:
 
 ```python
 # Your SerpAPI key
 SERPAPI_KEY = "your_actual_serpapi_key_here"
+
+# Telegram Bot Configuration
+TELEGRAM_ENABLED = True  # Set to False to disable notifications
+TELEGRAM_BOT_TOKEN = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+TELEGRAM_CHAT_ID = "123456789"
 
 # Your work information
 NOVEL_TITLE = "Your Novel Title"
@@ -71,10 +106,37 @@ The script will:
 1. Search Google for your novel using the configured queries
 2. Filter out official domains
 3. Track new URLs not seen in previous runs
-4. Generate three output files:
+4. **Send you a Telegram notification** if new piracy URLs are found
+5. Generate three output files:
    - `piracy_candidates.csv` - All discovered URLs with metadata
    - `seen_urls.json` - Cache of previously seen URLs
    - `dmca_report.txt` - Draft DMCA takedown notice
+
+### Telegram Notification Example
+
+When new URLs are found, you'll receive a message like:
+
+```
+🚨 New Piracy URLs Detected!
+
+📚 Novel: Level Up Legacy
+✍️ Author: MellowGuy
+🔍 Found: 3 new URL(s)
+
+📍 Infringing URLs:
+1. pirate-novels.com
+   https://pirate-novels.com/level-up-legacy/chapter-1
+2. freenovel.site
+   https://freenovel.site/read/level-up-legacy
+3. novel-reader.net
+   https://novel-reader.net/series/level-up-legacy
+
+📄 Full details saved to:
+• piracy_candidates.csv
+• dmca_report.txt
+
+⚖️ Review and take action if confirmed as infringement.
+```
 
 ## Output Files
 
