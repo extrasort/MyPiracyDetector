@@ -44,6 +44,9 @@ dmca_report.txt
 .env
 config.ini
 
+# Keep .env.example
+!.env.example
+
 # OS
 .DS_Store
 Thumbs.db

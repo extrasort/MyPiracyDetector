@@ -10,11 +10,24 @@ A Python script to detect unauthorized hosting of your web novel by searching Go
 - 💾 Exports results to CSV for easy review
 - 🔄 Incremental scanning (remembers previously seen URLs)
 - 📱 **Telegram bot notifications** - Get instant alerts when piracy is detected!
+- ☁️ **Railway deployment ready** - Run automatically in the cloud with scheduled scans
+- 📎 **Files sent via Telegram** - No need to check server files, everything comes to you!
 
 ## Prerequisites
 
 - Python 3.7 or higher
 - A SerpAPI account and API key (get one at https://serpapi.com/)
+- A Telegram account and bot (see configuration below)
+
+## 🚀 Quick Start
+
+### Option 1: Deploy to Railway (Recommended)
+
+For automated cloud deployment with scheduled scans, see **[RAILWAY_DEPLOY.md](RAILWAY_DEPLOY.md)** for complete instructions.
+
+### Option 2: Run Locally
+
+Follow the installation steps below.
 
 ## Installation
 

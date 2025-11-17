@@ -4,20 +4,20 @@ import json
 import os
 from urllib.parse import urlparse
 from datetime import datetime
+from io import StringIO
 
 # ===================== CONFIGURATION =====================
 
-# Your SerpAPI key (get it from https://serpapi.com/)
-SERPAPI_KEY = "YOUR_SERPAPI_KEY_HERE"
-
-# Telegram Bot Configuration (optional)
-TELEGRAM_ENABLED = True  # Set to False to disable notifications
-TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"  # Get from @BotFather
-TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID_HERE"  # Your chat ID
+# Configuration from environment variables (for Railway deployment)
+# Falls back to hardcoded values for local testing
+SERPAPI_KEY = os.getenv("SERPAPI_KEY", "YOUR_SERPAPI_KEY_HERE")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN_HERE")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "YOUR_TELEGRAM_CHAT_ID_HERE")
+TELEGRAM_ENABLED = os.getenv("TELEGRAM_ENABLED", "true").lower() == "true"
 
 # Your work information
-NOVEL_TITLE = "Level Up Legacy"
-AUTHOR_NAME = "MellowGuy"
+NOVEL_TITLE = os.getenv("NOVEL_TITLE", "Level Up Legacy")
+AUTHOR_NAME = os.getenv("AUTHOR_NAME", "MellowGuy")
 
 # The official domain(s) that are allowed to host your novel
 OFFICIAL_DOMAINS = {
@@ -139,6 +139,34 @@ def send_telegram_message(message: str):
         print(f"❌ Error sending Telegram message: {e}")
         return False
 
+def send_telegram_document(file_content: str, filename: str, caption: str = ""):
+    """Send a document (file) via Telegram bot."""
+    if not TELEGRAM_ENABLED:
+        return False
+    
+    if TELEGRAM_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN_HERE" or TELEGRAM_CHAT_ID == "YOUR_TELEGRAM_CHAT_ID_HERE":
+        return False
+    
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
+        
+        files = {
+            'document': (filename, file_content.encode('utf-8'), 'text/plain')
+        }
+        data = {
+            'chat_id': TELEGRAM_CHAT_ID,
+            'caption': caption[:1024] if caption else ""  # Telegram caption limit
+        }
+        
+        resp = requests.post(url, files=files, data=data, timeout=30)
+        resp.raise_for_status()
+        
+        print(f"✅ Telegram document '{filename}' sent successfully")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending Telegram document: {e}")
+        return False
+
 def format_telegram_message(new_entries):
     """Format a notification message for Telegram."""
     if not new_entries:
@@ -150,6 +178,7 @@ def format_telegram_message(new_entries):
     lines.append(f"📚 Novel: <b>{NOVEL_TITLE}</b>")
     lines.append(f"✍️ Author: <b>{AUTHOR_NAME}</b>")
     lines.append(f"🔍 Found: <b>{len(new_entries)} new URL(s)</b>")
+    lines.append(f"⏰ Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     lines.append("")
     lines.append("📍 <b>Infringing URLs:</b>")
     
@@ -158,7 +187,7 @@ def format_telegram_message(new_entries):
         url = entry['url']
         # Truncate very long URLs
         display_url = url if len(url) <= 80 else url[:77] + "..."
-        lines.append(f"{i}. {domain}")
+        lines.append(f"\n{i}. <b>{domain}</b>")
         lines.append(f"   {display_url}")
     
     if len(new_entries) > 20:
@@ -166,13 +195,25 @@ def format_telegram_message(new_entries):
         lines.append(f"... and {len(new_entries) - 20} more URLs")
     
     lines.append("")
-    lines.append("📄 Full details saved to:")
-    lines.append(f"• {CANDIDATES_CSV}")
-    lines.append(f"• {DMCA_REPORT_FILE}")
+    lines.append("📎 <b>Files will be sent separately:</b>")
+    lines.append("• Full URL list (CSV)")
+    lines.append("• DMCA takedown notice (TXT)")
     lines.append("")
     lines.append("⚖️ Review and take action if confirmed as infringement.")
     
     return "\n".join(lines)
+
+def format_csv_content(entries):
+    """Generate CSV content as a string."""
+    if not entries:
+        return ""
+    
+    output = StringIO()
+    fieldnames = ["found_at", "query", "url", "domain", "title", "snippet"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows(entries)
+    return output.getvalue()
 
 def generate_dmca_text(new_entries):
     """
@@ -291,16 +332,35 @@ def main():
     except Exception as e:
         print("Error writing DMCA report file:", e)
 
-    # Send Telegram notification
+    # Send Telegram notification with all files
     if TELEGRAM_ENABLED:
         telegram_msg = format_telegram_message(all_new_entries)
         if telegram_msg:
+            # Send main notification
             send_telegram_message(telegram_msg)
+            
+            # Send CSV file
+            csv_content = format_csv_content(all_new_entries)
+            if csv_content:
+                send_telegram_document(
+                    csv_content,
+                    f"piracy_urls_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.csv",
+                    f"📊 {len(all_new_entries)} new URLs found"
+                )
+            
+            # Send DMCA report
+            if dmca_text:
+                send_telegram_document(
+                    dmca_text,
+                    f"dmca_report_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.txt",
+                    "⚖️ DMCA Takedown Notice Draft"
+                )
 
     print("\nDone. Review the URLs in:")
     print(f" - {CANDIDATES_CSV}")
     print(f" - {DMCA_REPORT_FILE}")
-    print("Then copy the DMCA text into Google's copyright removal form.")
+    if TELEGRAM_ENABLED:
+        print("\n📱 All files have been sent to your Telegram!")
 
 if __name__ == "__main__":
     main()
