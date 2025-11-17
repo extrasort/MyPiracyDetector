@@ -25,12 +25,16 @@ OFFICIAL_DOMAINS = {
 }
 
 # Search queries used to find possible infringements
+# IMPORTANT: With 250 searches/month limit, running once daily = 8 searches/day is safe
+# Current setup: 4 queries × 1 run/day = 4 searches/day = ~120 searches/month (leaves buffer)
 QUERIES = [
     f'"{NOVEL_TITLE}" "{AUTHOR_NAME}"',
-    f'"{NOVEL_TITLE}" "MellowGuy"',
-    f'"{NOVEL_TITLE}" "webnovel"',
-    # You can add more lines with distinctive phrases from chapters if you like, e.g.:
-    # '"Level Up Legacy" "unique phrase from chapter 1"',
+    f'"{NOVEL_TITLE}" read online free',
+    f'"{NOVEL_TITLE}" chapter 1',
+    f'"{NOVEL_TITLE}" pdf download',
+    # Add more queries if needed, but watch your daily limit:
+    # Each query = 1 SerpAPI search
+    # Max 8 queries to stay within 8 searches/day limit
 ]
 
 # How many results to request per query (SerpAPI may cap this)
